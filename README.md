@@ -14,8 +14,9 @@ npm run dev
 
 ## Running your own node
 
-By default the prototype uses rinkeby test network, where the contract is deployed.
-For testing on own node, set `useLocalNode`to true and update the contract address accordingly.
+By default the prototype uses rinkeby test network, where the contract is deployed. (https://rinkeby.etherscan.io/address/0x12340385532F2c1da854326B09DE458fC20FfF33)
+
+For testing on own node, set `useLocalNode`to true and update the contract `contracts/basicCrowdfunding.sol` address accordingly.
 
 ``` bash
 # Starting rinkeby node from command line
