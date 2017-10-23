@@ -180,8 +180,7 @@ export default {
 
   computed: {
     ether () {
-      if (this.wei === null) return 0
-      return window.web3.utils.fromWei(this.wei, 'ether')
+      return window.web3.utils.fromWei(this.wei || 0, 'ether')
     }
   },
 
