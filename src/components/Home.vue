@@ -1,15 +1,38 @@
 <template>
   <div>
-    Coinbase: {{ coinbase }} <br />
-    Ether: {{ ether }} <br />
-    <input type="button" name="fund" value="fund 1 ether" @click="fundOneEther">
-    <input type="button" name="withdraw" value="withdraw all ether" @click="withdrawAll">
+
+    <section class="account">
+      <header>
+        <select v-if="accounts.length > 1" v-model="account">
+          <option v-for="account in accounts" :value="account">
+            {{ account }}
+          </option>
+        </select>
+        <template v-else>{{ account }}</template>
+      </header>
+      Ether: {{ ether }} <br />
+    </section>
+
+    <section class="contract">
+      <header>{{ contractProps.address }}</header>
+      <section class="info">
+        Beneficiary: {{ contractProps.beneficiary }} <br />
+        Goal: {{ contractProps.goal }} <br />
+        Value: {{ contractProps.value }} <br />
+      </section>
+
+      <section class="actions">
+        <input type="button" name="fund" value="fund 0.01 ether" @click="fundOneEther">
+        <input type="button" name="withdraw" value="withdraw all your ether" @click="withdrawAll">
+        <input type="button" name="claim" value="claim all ether" @click="claim">
+      </section>
+    </section>
+
   </div>
 </template>
 
 <script>
 import Web3 from 'web3'
-// import Contract from 'web3-eth-contract'
 
 const contractAddress = '0x12340385532F2c1da854326B09DE458fC20FfF33'
 const abi = [
@@ -172,9 +195,16 @@ export default {
 
   data () {
     return {
-      coinbase: null,
       useLocalNode: false,
+      accounts: [],
+      account: null,
       wei: null,
+      contractProps: {
+        beneficiary: 0,
+        goal: 0,
+        value: 0,
+        address: 0
+      }
       // contract, reactivity breaks assignment
     }
   },
@@ -194,36 +224,102 @@ export default {
       console.log('Connected to own node')
     }
 
-    window.web3.eth.getCoinbase().then((result) => {
-      this.coinbase = result
+    window.web3.eth.getAccounts().then((accounts) => {
+      this.accounts = accounts
+      this.account = accounts[0]
 
-      return window.web3.eth.getBalance(this.coinbase).then((result) => {
-        this.wei = result.toString()
-      })
+      return window.web3.eth.getBalance(this.account)
+    }).then((result) => {
+      this.wei = result
+    }).catch((error) => {
+      console.log(error)
     })
 
     this.contract = new window.web3.eth.Contract(abi, contractAddress)
+    this.contractProps.address = contractAddress
+
+    this.contract.events.FundAdded({}, (error, result) => {
+      if (error) {
+        console.error(error)
+        // We probably got here because the current provider doesn't support subscription
+        // So we might need some polling fallback
+      }
+    }).on('data', (log) => {
+      this.contractProps.value = parseInt(this.contractProps.value) + parseInt(log.returnValues.amount)
+      console.log(log)
+    }).on('error', (error) => {
+      console.log(error)
+    })
+
+    this.contract.events.FundWithdrew({}, (error, result) => {
+      if (error) {
+        console.error(error)
+        // We probably got here because the current provider doesn't support subscription
+        // So we might need some polling fallback
+      }
+    }).on('data', (log) => {
+      this.contractProps.value = parseInt(this.contractProps.value) - parseInt(log.returnValues.amount)
+      console.log(log)
+    }).on('error', (error) => {
+      console.log(error)
+    })
+
+    this._updateContract()
   },
 
   methods: {
 
     fundOneEther () {
       window.web3.eth.sendTransaction({
-        from: this.coinbase,
+        from: this.account,
         to: contractAddress,
-        value: '1000000000000000000'
+        value: '10000000000000000'
+      }).on('transactionHash', (hash) => {
+        console.log(hash)
+      }).on('receipt', (receipt) => {
+        console.log(receipt)
+      }).on('confirmation', (number, object) => {
+        console.log(number)
+        console.log(object)
+      }).on('error', (error) => {
+        console.log(error)
       })
     },
 
     withdrawAll () {
-      this.contract.methods.withdraw().send({from: this.coinbase})
+      this.contract.methods.withdraw().send({
+        from: this.account
+      }).on('error', (error) => {
+        console.log(error)
+      })
+    },
+
+    claim () {
+      this.contract.methods.claim().send({
+        from: this.account
+      }).on('error', (error) => {
+        console.log(error)
+      })
+    },
+
+    _updateContract () {
+      this.contract.methods.beneficiary().call().then((result) => {
+        this.contractProps.beneficiary = result
+      })
+
+      this.contract.methods.goal().call().then((result) => {
+        this.contractProps.goal = result
+      })
+
+      this.contract.methods.value().call().then((result) => {
+        this.contractProps.value = result
+      })
     }
 
   }
 }
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 
 </style>
