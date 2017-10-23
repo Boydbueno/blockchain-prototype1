@@ -173,7 +173,8 @@ export default {
   data () {
     return {
       coinbase: null,
-      wei: null
+      useLocalNode: false,
+      wei: null,
       // contract, reactivity breaks assignment
     }
   },
@@ -185,7 +186,13 @@ export default {
   },
 
   created () {
-    window.web3 = new Web3(window.web3.currentProvider)
+    if (Web3.givenProvider && !this.useLocalNode) {
+      window.web3 = new Web3(Web3.givenProvider)
+      console.log('Given provider', Web3.givenProvider)
+    } else {
+      window.web3 = new Web3('ws://localhost:8546')
+      console.log('Connected to own node')
+    }
 
     window.web3.eth.getCoinbase().then((result) => {
       this.coinbase = result
